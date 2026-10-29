@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>영상 만들기</title>
+<style>
+:root{--bg:#F4F7FA;--ink:#1B2A41;--mut:#4A5B73;--card:#FFFFFF;--line:#C3CFDD;--pri:#0E6E78;--on:#FFFFFF;--bad:#B3261E;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1724;--ink:#EAF0F7;--mut:#A9B8CB;--card:#182235;--line:#2D3C55;--pri:#4FC3CF;--on:#06222A;--bad:#FF8A80}}
+:root[data-theme="dark"]{--bg:#0F1724;--ink:#EAF0F7;--mut:#A9B8CB;--card:#182235;--line:#2D3C55;--pri:#4FC3CF;--on:#06222A;--bad:#FF8A80}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:20px/1.6 "Malgun Gothic","Noto Sans KR","Apple SD Gothic Neo",sans-serif}
+main{max-width:800px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:30px;margin:8px 0 4px}
+p.sub{margin:0 0 20px;color:var(--mut)}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{font-size:22px;margin:0 0 12px}
+.btn,button{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 22px;border-radius:12px;border:2px solid var(--pri);background:var(--pri);color:var(--on);font:inherit;font-weight:700;cursor:pointer}
+.alt{background:transparent;color:var(--pri)}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+input:focus-visible+.btn,button:focus-visible,select:focus-visible,input:focus-visible{outline:4px solid #F2B134;outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:12px}
+select,input[type=text]{font:inherit;min-height:52px;padding:0 12px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink);max-width:100%}
+input[type=text]{width:100%}
+input[type=checkbox]{width:28px;height:28px;accent-color:var(--pri)}
+label.ck{display:flex;gap:10px;align-items:center;min-height:52px}
+input[type=range]{width:200px;accent-color:var(--pri)}
+.it{display:flex;flex-wrap:wrap;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+.th{width:140px;height:90px;object-fit:cover;border-radius:8px;background:#000}
+.info{flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px}
+.bt{display:flex;flex-direction:column;gap:6px}
+.bt button{min-height:44px;padding:0 14px;font-size:17px;background:transparent;color:var(--pri)}
+.bt button:last-child{color:var(--bad);border-color:var(--bad)}
+canvas,video#out{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#000;border-radius:10px}
+progress{width:100%;height:20px;margin-top:12px}
+#msg{margin:12px 0 0;min-height:32px;font-weight:700}
+#res{display:none;margin-top:16px}
+#dl{display:none;margin-top:10px}
+.busy button,.busy select,.busy input,.busy .btn{pointer-events:none;opacity:.5}
+.note{color:var(--mut);font-size:18px;margin:8px 0 0}
+</style>
+</head>
+<body>
+<main>
+<h1>영상 만들기</h1>
+<p class="sub">사진·영상에 음악과 자막을 넣어 mp4 영상으로 저장합니다.</p>
+
+<section>
+<h2>1단계. 영상·사진 넣기</h2>
+<input type="file" id="pick" accept="image/*,video/*" multiple>
+<label for="pick" class="btn">영상·사진 고르기</label>
+<p class="note">여러 개를 한꺼번에 고르거나, 나중에 더 추가해도 됩니다.</p>
+<div id="items"></div>
+<p id="sum" class="note"></p>
+<label class="ck"><input type="checkbox" id="fade" checked> 장면이 바뀔 때 서서히 나타나게</label>
+</section>
+
+<section>
+<h2>2단계. 음악 넣기</h2>
+<input type="file" id="mpick" accept="audio/*">
+<div class="row"><label for="mpick" class="btn alt">음악 고르기</label><button class="alt" id="mdel" style="display:none">음악 지우기</button></div>
+<p id="mname" class="note"></p>
+<div class="row">
+<label>음악 크기 <input type="range" id="vm" min="0" max="100" value="70"></label>
+<label>영상 원래 소리 <input type="range" id="vv" min="0" max="100" value="100"></label>
+</div>
+</section>
+
+<section>
+<h2>3단계. 자막 모양 정하기</h2>
+<p class="note">자막 글은 1단계 각 장면 아래 칸에 쓰세요.</p>
+<div class="row">
+<label>글자 크기 <select id="csize"><option value="s">작게</option><option value="m" selected>보통</option><option value="l">크게</option></select></label>
+<label>위치 <select id="cpos"><option value="b" selected>아래</option><option value="m">가운데</option><option value="t">위</option></select></label>
+</div>
+</section>
+
+<section>
+<h2>4단계. 보고 mp4로 만들기</h2>
+<canvas id="cv" width="1280" height="720" aria-label="영상 미리보기"></canvas>
+<progress id="bar" value="0" max="100"></progress>
+<p id="left" class="note"></p>
+<div class="row">
+<button class="alt" id="prev">미리보기</button>
+<button id="make">mp4로 만들기</button>
+</div>
+<p id="msg" role="status" aria-live="polite"></p>
+<div id="res">
+<video id="out" controls playsinline></video>
+<div class="row"><button id="savebtn">내 컴퓨터에 저장하기</button></div>
+<a id="dl" class="btn alt" download="내영상.mp4">영상 파일 받기</a>
+</div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const cv=$('#cv'),ctx=cv.getContext('2d'),W=1280,H=720;
+const items=[];let music=null,AC=null,dest=null,gM=null,gV=null,raf=0;
+const msg=t=>{$('#msg').textContent=t};
+const total=()=>items.reduce((a,b)=>a+b.dur,0);
+
+function initAudio(){
+  if(AC)return;
+  AC=new(window.AudioContext||window.webkitAudioContext)();
+  dest=AC.createMediaStreamDestination();
+  const mon=AC.createGain();mon.connect(AC.destination);
+  gM=AC.createGain();gV=AC.createGain();
+  [gM,gV].forEach(g=>{g.connect(dest);g.connect(mon)});
+}
+function hook(el,g){if(el._h)return;AC.createMediaElementSource(el).connect(g);el._h=1}
+
+function caption(text){
+  const sz={s:36,m:48,l:64}[$('#csize').value],pos=$('#cpos').value;
+  ctx.font='700 '+sz+'px "Malgun Gothic","Noto Sans KR",sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.lineWidth=sz/6;ctx.lineJoin='round';ctx.strokeStyle='#000';ctx.fillStyle='#fff';
+  const lines=[];let line='';
+  for(const ch of text){const n=line+ch;if(ctx.measureText(n).width>W-160&&line){lines.push(line);line=ch}else line=n}
+  lines.push(line);
+  const lh=sz*1.3,h=lines.length*lh,y0=pos==='b'?H-60-h:pos==='m'?(H-h)/2:60;
+  lines.forEach((l,k)=>{const y=y0+lh*k+lh/2;ctx.strokeText(l,W/2,y);ctx.fillText(l,W/2,y)});
+}
+function draw(i,lt){
+  ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  const it=items[i];if(!it)return;
+  const el=it.el,w0=it.t==='img'?el.width:el.videoWidth,h0=it.t==='img'?el.height:el.videoHeight;
+  if(w0&&h0){
+    const s=Math.min(W/w0,H/h0),w=w0*s,h=h0*s;
+    ctx.globalAlpha=$('#fade').checked?Math.min(1,lt/.8):1;
+    ctx.drawImage(el,(W-w)/2,(H-h)/2,w,h);ctx.globalAlpha=1;
+  }
+  if(it.cap.trim())caption(it.cap);
+}
+const still=()=>draw(0,9);
+function locate(t){let s=0;for(let i=0;i<items.length;i++){if(t<s+items[i].dur||i===items.length-1)return[i,t-s];s+=items[i].dur}return[0,0]}
+function stopMedia(){items.forEach(it=>{if(it.t==='vid')it.el.pause()});if(music)music.el.pause()}
+
+function play(onEnd){
+  cancelAnimationFrame(raf);initAudio();AC.resume();stopMedia();
+  const tot=total(),t0=performance.now();let cur=-1;
+  gM.gain.value=$('#vm').value/100;gV.gain.value=$('#vv').value/100;
+  if(music){hook(music.el,gM);music.el.currentTime=0;music.el.play().catch(()=>{})}
+  (function tick(now){
+    const t=(now-t0)/1000;
+    if(t>=tot){stopMedia();draw(items.length-1,9);$('#bar').value=100;$('#left').textContent='';if(onEnd)onEnd();return}
+    const[i,lt]=locate(t);
+    if(i!==cur){
+      if(cur>=0&&items[cur].t==='vid')items[cur].el.pause();
+      cur=i;const it=items[i];
+      if(it.t==='vid'){hook(it.el,gV);it.el.currentTime=0;it.el.play().catch(()=>{})}
+    }
+    draw(i,lt);$('#bar').value=t/tot*100;$('#left').textContent='남은 시간 약 '+Math.ceil(tot-t)+'초';
+    raf=requestAnimationFrame(tick);
+  })(t0);
+}
+
+function mv(i,d){const j=i+d;if(j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]];list();still()}
+function list(){
+  const box=$('#items');box.textContent='';
+  items.forEach((it,i)=>{
+    const d=document.createElement('div');d.className='it';
+    const th=document.createElement(it.t==='img'?'img':'video');th.src=it.url;th.className='th';
+    if(it.t==='vid'){th.muted=true;th.preload='metadata';th.playsInline=true}
+    const info=document.createElement('div');info.className='info';
+    const nm=document.createElement('b');nm.textContent=(i+1)+'. '+(it.t==='img'?'사진':'영상')+' · '+it.name;info.append(nm);
+    if(it.t==='img'){
+      const s=document.createElement('select');
+      [2,3,4,5,7,10].forEach(n=>{const o=new Option(n+'초 보여주기',n);if(n===it.dur)o.selected=true;s.add(o)});
+      s.onchange=()=>{it.dur=+s.value;list()};info.append(s);
+    }else{const p=document.createElement('span');p.textContent='길이 '+it.dur.toFixed(1)+'초';info.append(p)}
+    const c=document.createElement('input');c.type='text';c.placeholder='자막 (이 장면에 나올 글)';c.value=it.cap;
+    c.setAttribute('aria-label',(i+1)+'번 자막');c.oninput=()=>{it.cap=c.value};info.append(c);
+    const b=document.createElement('div');b.className='bt';
+    [['위로',()=>mv(i,-1)],['아래로',()=>mv(i,1)],['지우기',()=>{items.splice(i,1);list();still()}]].forEach(([t,f])=>{
+      const x=document.createElement('button');x.textContent=t;x.onclick=f;b.append(x)});
+    d.append(th,info,b);box.append(d);
+  });
+  $('#sum').textContent=items.length?'모두 '+items.length+'개 · 영상 길이 약 '+Math.round(total())+'초':'';
+}
+
+$('#pick').onchange=async e=>{
+  for(const f of e.target.files){
+    const url=URL.createObjectURL(f);
+    if(f.type.startsWith('image/')){
+      const im=new Image();im.src=url;
+      try{await im.decode()}catch(_){continue}
+      items.push({t:'img',el:im,url,name:f.name,dur:3,cap:''});
+    }else if(f.type.startsWith('video/')){
+      const v=document.createElement('video');v.src=url;v.preload='auto';v.playsInline=true;
+      await new Promise(r=>{v.onloadedmetadata=r;v.onerror=r});
+      if(!isFinite(v.duration))continue;
+      items.push({t:'vid',el:v,url,name:f.name,dur:v.duration,cap:''});
+    }
+  }
+  e.target.value='';list();still();msg('');
+};
+$('#mpick').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(music)music.el.pause();
+  const url=URL.createObjectURL(f),el=new Audio(url);el.preload='auto';
+  music={el,url,name:f.name};$('#mname').textContent='고른 음악: '+f.name;$('#mdel').style.display='inline-flex';e.target.value='';
+};
+$('#mdel').onclick=()=>{if(music)music.el.pause();music=null;$('#mname').textContent='';$('#mdel').style.display='none'};
+['csize','cpos','fade'].forEach(id=>$('#'+id).onchange=()=>{if(items.length)still()});
+
+$('#prev').onclick=()=>{items.length?(msg(''),play()):msg('먼저 사진이나 영상을 골라 주세요.')};
+
+$('#make').onclick=()=>{
+  if(!items.length)return msg('먼저 사진이나 영상을 골라 주세요.');
+  const types=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
+  const type=window.MediaRecorder&&types.find(t=>MediaRecorder.isTypeSupported(t));
+  if(!type)return msg('이 브라우저에서는 만들 수 없어요. 크롬으로 열어 주세요.');
+  initAudio();$('#res').style.display='none';
+  const stream=cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  const rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:6000000}),chunks=[];
+  rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  rec.onstop=()=>{
+    document.body.classList.remove('busy');
+    const ext=type.includes('mp4')?'mp4':'webm',blob=new Blob(chunks,{type:type.split(';')[0]}),u=URL.createObjectURL(blob);
+    $('#out').src=u;$('#res').style.display='block';
+    const a=$('#dl');a.href=u;a.download='내영상.'+ext;a.style.display='none';
+    $('#savebtn').onclick=async()=>{
+      try{
+        const dl=window.claude&&await claude.use('downloads');
+        if(!dl)throw 0;
+        await dl.save({filename:'내영상.'+ext,data:blob});msg('저장했어요!');
+      }catch(_){a.style.display='inline-flex';msg('아래 “영상 파일 받기”를 눌러 주세요.')}
+    };
+    msg(ext==='webm'?'다 만들었어요. 이 컴퓨터에서는 webm으로 저장돼요.':'다 만들었어요! 영상을 확인하고 저장하세요.');
+  };
+  document.body.classList.add('busy');
+  msg('만드는 중이에요. 끝날 때까지 다른 창으로 옮기지 마세요.');
+  rec.start(250);play(()=>setTimeout(()=>rec.stop(),400));
+};
+still();
+</script>
+</body>
+</html>
